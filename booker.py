@@ -145,8 +145,7 @@ if __name__ == "__main__":
                             "giorno": giorno
                         }
                         for retry in range(max_retries):
-                            prenotazione_response = None
-                            #prenotazione_response = do_post("/prenotazione_new", body)
+                            prenotazione_response = do_post("/prenotazione_new", body)
                             if prenotazione_response["status"] == 2:
                                 enhanced_log(f"Prenotazione avvenuta con successo per il corso: [{corso}] il giorno: [{giorno}] alle [{ora_start}]")
                                 break
