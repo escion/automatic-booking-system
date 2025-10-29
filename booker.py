@@ -142,7 +142,7 @@ if __name__ == "__main__":
                             "id_sede": id_sede,
                             "codice_sessione": session_id,
                             "id_orario_palinsesto": id_orario_palinsesto,
-                            "giorno": giorno
+                            "data": giorno
                         }
                         for retry in range(max_retries):
                             prenotazione_response = do_post("/prenotazione_new", body)
