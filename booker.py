@@ -22,7 +22,7 @@ def enhanced_log(message: str):
 
 def telegram_message(message: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    title = "<b>🏋️ Prenotazioni YAMA</b>"
+    title = "<b>🏋️ Prenotazione YAMA</b>"
     full_message = f"{title}\n[{timestamp}]\n{message}"
     if not bot_token or not chat_id:
         print("Manca TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID nel .env")
@@ -145,18 +145,14 @@ if __name__ == "__main__":
                             "giorno": giorno
                         }
                         for retry in range(max_retries):
-                            prenotazione_response = do_post("/prenotazione_new", body)
+                            prenotazione_response = None
+                            #prenotazione_response = do_post("/prenotazione_new", body)
                             if prenotazione_response["status"] == 2:
                                 enhanced_log(f"Prenotazione avvenuta con successo per il corso: [{corso}] il giorno: [{giorno}] alle [{ora_start}]")
                                 break
                             else:
                                 enhanced_log(f'Prenotazione fallita, stato: [{prenotazione_response["status"]}] messaggio: [{prenotazione_response["messaggio"]}]. Retry {retry + 1}/{max_retries} dopo {sleep_seconds} secondi.')
                                 time.sleep(sleep_seconds)
-                        prenotazione_response = do_post("/prenotazione_new", body)
-                        if prenotazione_response["status"] == 2:
-                            print(f"Prenotazione avvenuta con successo per il corso: [{corso}] il giorno: [{giorno}] alle [{ora_start}]")
-                        else:
-                            print(f'Prenotazione fallita, stato: [{prenotazione_response["status"]}] messaggio: [{prenotazione_response["messaggio"]}]')
                 else:
                     enhanced_log(f"Corso [{corso}] il giorno [{giorno}] alle [{ora_start}] NON prenotabile.")
         else:
