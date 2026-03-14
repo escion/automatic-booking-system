@@ -126,7 +126,7 @@ if __name__ == "__main__":
                             print(f"Id orario palinsesto: [{id_orario_palinsesto}], numeri posti disponibili: [{numero_posti_disponibili}]")
                             # non prenotabile per posti esauriti o prenotazioni non ancora aperte o altro
                             if orario["prenotazioni"]["id_disponibilita"] == "0":
-                                enhanced_log(f'Errore: [{orario["prenotazioni"]["frase"]}].')
+                                enhanced_log(f'[{user}]: errore: [{orario["prenotazioni"]["frase"]}] per [{corso}].')
                             else:
                                 bookable = True
             
@@ -147,12 +147,12 @@ if __name__ == "__main__":
                         for retry in range(max_retries):
                             prenotazione_response = do_post("/prenotazione_new", body)
                             if prenotazione_response["status"] == 2:
-                                enhanced_log(f"Prenotazione avvenuta con successo per il corso: [{corso}] il giorno: [{giorno}] alle [{ora_start}]")
+                                enhanced_log(f"[{user}]: prenotazione avvenuta con successo per il corso: [{corso}] il giorno: [{giorno}] alle [{ora_start}]")
                                 break
                             else:
-                                enhanced_log(f'Prenotazione fallita, stato: [{prenotazione_response["status"]}] messaggio: [{prenotazione_response["messaggio"]}]. Retry {retry + 1}/{max_retries} dopo {sleep_seconds} secondi.')
+                                enhanced_log(f'[{user}]: prenotazione fallita, stato: [{prenotazione_response["status"]}] messaggio: [{prenotazione_response["messaggio"]}]. Retry {retry + 1}/{max_retries} dopo {sleep_seconds} secondi.')
                                 time.sleep(sleep_seconds)
                 else:
-                    enhanced_log(f"Corso [{corso}] il giorno [{giorno}] alle [{ora_start}] NON prenotabile.")
+                    enhanced_log(f"[{user}]: corso [{corso}] il giorno [{giorno}] alle [{ora_start}] NON prenotabile.")
         else:
             print("Login fallita.")
