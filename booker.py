@@ -5,6 +5,9 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 # Carica le variabili da .env
 load_dotenv()
 id_sede = os.getenv("ID_SEDE")
@@ -17,7 +20,7 @@ def enhanced_log(message: str):
     """
     Logga un messaggio sulla console.
     """
-    print(message)
+    logging.info(message)
     telegram_message(message)
 
 def telegram_message(message: str):
@@ -25,7 +28,7 @@ def telegram_message(message: str):
     title = "<b>🏋️ Prenotazione YAMA</b>"
     full_message = f"{title}\n[{timestamp}]\n{message}"
     if not bot_token or not chat_id:
-        print("Manca TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID nel .env")
+        logging.error("Manca TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID nel .env")
         return
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -38,7 +41,7 @@ def telegram_message(message: str):
         resp = requests.post(url, data=payload)
         resp.raise_for_status()
     except requests.exceptions.RequestException as e:
-        print(f"Errore nell'invio del messaggio Telegram: {e}")
+        logging.error(f"Errore nell'invio del messaggio Telegram: {e}")
 
 
 def do_post(
@@ -53,16 +56,16 @@ def do_post(
     # Se non è passato un URL, lo legge dal .env
     url = os.getenv("API_URL") + path
     if not url:
-        print("Manca API_URL nel .env")
+        logging.error("Manca API_URL nel .env")
 
     try:
         resp = requests.post(url, data=form_data, timeout=timeout)
         resp.raise_for_status()  # solleva se status >= 400
         return resp.json()  # solleva se non è JSON valido
     except requests.exceptions.RequestException as e:
-        print(f"Errore HTTP nella POST a {url}: {e}")
+        logging.error(f"Errore HTTP nella POST a {url}: {e}")
     except ValueError:
-        print(f"La risposta da {url} non è JSON valido")
+        logging.error(f"La risposta da {url} non è JSON valido")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script per prenotare corsi automaticamente.")
@@ -70,7 +73,8 @@ if __name__ == "__main__":
     parser.add_argument("--ora_start", required=True, help="Ora di inizio della prenotazione (HH:MM)")
     parser.add_argument("--corso", required=True, help="Nome del corso da prenotare", choices=["Hatha Yoga", "Vinyasa Yoga", "Calisthenics", "Pilates", "Biomechanics", "HandStand"])
     parser.add_argument("--mode", help="Modalità di prenotazione: read o book", choices=["read", "book"], default="read")
-    parser.add_argument("--users", help="Utenti per il login", nargs="+", required=True, choices=["alessandro", "giulia", "luna"])
+    parser.add_argument("--users", help="Utenti per il login", nargs="+", required=True, choices=["alessandro", "giulia"])
+    parser.add_argument("--force", help="Forzatura booking", default=False)
     args = parser.parse_args()
     
     giorno = args.giorno
@@ -78,11 +82,12 @@ if __name__ == "__main__":
     corso = args.corso
     mode = args.mode
     users = args.users
+    force_booking = args.force
 
     for user in users:
 
         user = user.upper()
-        print(f"User: [{user}]")
+        logging.info(f"User: [{user}]")
 
         # Login
         body = {
@@ -96,7 +101,7 @@ if __name__ == "__main__":
         if login_response["status"] == 2:
             # Recupero sessionId
             session_id = login_response["parametri"]["sessione"]["codice_sessione"]
-            print(f"Login [OK], codice sessione: [{session_id}]")
+            logging.info(f"Login [OK], codice sessione: [{session_id}]")
 
             # Recupero palinsesti in base ai parametri.
             body = {
@@ -106,7 +111,7 @@ if __name__ == "__main__":
             }
             palinsesti_response = do_post("/palinsesti", body)
             if palinsesti_response["status"] != 2:
-                print(f"Recupero palinsesti fallito: {palinsesti_response}")
+                logging.info(f"Recupero palinsesti fallito: {palinsesti_response}")
 
 
             # cerca id palinsesto in base a corso, ora_start
@@ -117,13 +122,13 @@ if __name__ == "__main__":
                 if id_orario_palinsesto is not None:
                     break
                 current_day = day["nome_giorno"]
-                print(f"Analisi giorno: [{current_day}] per corso [{corso}] alle [{ora_start}]")
+                logging.info(f"Analisi giorno: [{current_day}] per corso [{corso}] alle [{ora_start}]")
                 if day["giorno"] == giorno:
                     for orario in day["orari_giorno"]:
                         if (orario["orario_inizio"] == ora_start and orario["nome_corso"] == corso):
                             id_orario_palinsesto = orario["id_orario_palinsesto"]
                             numero_posti_disponibili = orario["prenotazioni"]["numero_posti_disponibili"]
-                            print(f"Id orario palinsesto: [{id_orario_palinsesto}], numeri posti disponibili: [{numero_posti_disponibili}]")
+                            logging.info(f"Id orario palinsesto: [{id_orario_palinsesto}], numeri posti disponibili: [{numero_posti_disponibili}]")
                             # non prenotabile per posti esauriti o prenotazioni non ancora aperte o altro
                             if orario["prenotazioni"]["id_disponibilita"] == "0":
                                 enhanced_log(f'[{user}]: errore: [{orario["prenotazioni"]["frase"]}] per [{corso}].')
@@ -131,11 +136,11 @@ if __name__ == "__main__":
                                 bookable = True
             
             if id_orario_palinsesto is None:
-                print(f"Impossibile trovare il corso [{corso}] il giorno [{giorno}] alle [{ora_start}]")
+                logging.error(f"Impossibile trovare il corso [{corso}] il giorno [{giorno}] alle [{ora_start}]")
             else:
-                if bookable:
+                if bookable or force_booking == "true":
                     if mode == "read":
-                        print(f"Modalità [read]: prenotazione NON effettuabile.")
+                        logging.warn(f"Modalità [read]: prenotazione NON effettuabile.")
                     else:
                         # prenotazione con retry se per esempio alle 22.00.00 esatte non sono ancora aperte le prenotazioni
                         body = {
@@ -155,4 +160,4 @@ if __name__ == "__main__":
                 else:
                     enhanced_log(f"[{user}]: corso [{corso}] il giorno [{giorno}] alle [{ora_start}] NON prenotabile.")
         else:
-            print("Login fallita.")
+            logging.error("Login fallita.")
